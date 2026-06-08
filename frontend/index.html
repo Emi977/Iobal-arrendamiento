@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>IOBAL — Arrendamiento</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+  <div id="login-screen" class="screen">
+    <div class="card login-card">
+      <div class="logo">IOBAL</div>
+      <p class="subtitle">Sistema de arrendamiento</p>
+      <div id="login-error" class="alert alert-error hidden"></div>
+      <div class="field">
+        <label>Correo</label>
+        <input type="email" id="email" placeholder="admin@iobal.com"/>
+      </div>
+      <div class="field">
+        <label>Contraseña</label>
+        <input type="password" id="password" placeholder="••••••••"/>
+      </div>
+      <button id="btn-login">Iniciar sesión</button>
+    </div>
+  </div>
+
+  <div id="app-screen" class="screen hidden">
+    <aside class="sidebar">
+      <div class="sidebar-logo">IOBAL</div>
+      <nav>
+        <a class="nav-item active" data-section="propiedades"> Propiedades</a>
+        <a class="nav-item" data-section="inquilinos"> Inquilinos</a>
+        <a class="nav-item" data-section="contratos"> Contratos</a>
+        <a class="nav-item" data-section="pagos"> Pagos</a>
+        <a class="nav-item" data-section="mensajes"> Mensajes</a>
+        <a class="nav-item" data-section="cuidados"> Cuidados</a>
+        <a class="nav-item admin-only" data-section="usuarios"> Usuarios</a>
+      </nav>
+      <button id="btn-logout" class="btn-secondary">Cerrar sesión</button>
+    </aside>
+
+    <main class="content">
+      <div class="content-header">
+        <h1 id="section-title">Propiedades</h1>
+        <button id="btn-new" class="btn-primary">+ Nuevo</button>
+      </div>
+      <div id="alert-global" class="alert hidden"></div>
+      <div id="section-content"></div>
+    </main>
+  </div>
+
+  <div id="modal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="modal-title"></h2>
+        <button id="modal-close">✕</button>
+      </div>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
