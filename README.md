@@ -1,4 +1,4 @@
-# IOBAL — Arrendamiento de propiedades
+# Arrendamiento de propiedades
 
 Sistema de gestión de arrendamiento con propiedades, inquilinos, contratos, pagos y mensajes.
 
