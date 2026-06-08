@@ -61,7 +61,7 @@ $("btn-login").onclick = async () => {
     localStorage.setItem("me", JSON.stringify(me));
     initApp();
   } catch (e) {
-    $("login-error").textContent = e.message;
+    $("login-error").textContent = typeof e.message === "string" ? e.message : "Error al iniciar sesión";
     $("login-error").classList.remove("hidden");
   }
 };
