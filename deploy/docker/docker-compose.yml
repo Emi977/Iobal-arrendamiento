@@ -1,3 +1,7 @@
+# Configuración de Docker para PRODUCCIÓN.
+# Durante el desarrollo no se usa; ver README.md en la raíz del proyecto
+# para levantar el backend (y frontend) en local sin Docker.
+
 services:
   db:
     image: postgres:16
@@ -16,7 +20,9 @@ services:
       retries: 5
 
   backend:
-    build: ./backend
+    build:
+      context: ../../backend
+      dockerfile: ../deploy/docker/Dockerfile.backend
     environment:
       DATABASE_URL: postgresql+asyncpg://iobal:iobal123@db:5432/arrend_db
       SECRET_KEY: cambia-esto-en-produccion
@@ -26,14 +32,19 @@ services:
       db:
         condition: service_healthy
     volumes:
-      - ./backend:/app
+      - ../../backend:/app
+      - ../../frontend:/app/frontend:ro
 
+  # Opcional: Nginx como reverse proxy / servidor de archivos estáticos
+  # adicional en producción. El backend ya sirve el frontend en "/",
+  # así que este servicio solo es necesario si se requiere TLS,
+  # cacheo de estáticos o balanceo adicional.
   frontend:
     image: nginx:alpine
     ports:
       - "3000:80"
     volumes:
-      - ./frontend:/usr/share/nginx/html:ro
+      - ../../frontend:/usr/share/nginx/html:ro
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       - backend

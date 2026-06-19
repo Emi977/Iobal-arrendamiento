@@ -17,6 +17,7 @@ from app.api.routes.contratos import router as contratos_router
 from app.api.routes.pagos import router as pagos_router
 from app.api.routes.mensajes import router as mensajes_router
 from app.api.routes.cuidados import router as cuidados_router
+from app.api.routes.ti import router as ti_router
 
 app = FastAPI(title="IOBAL Arrendamiento API", version="1.0.0")
 app.state.limiter = limiter
@@ -31,17 +32,24 @@ app.include_router(contratos_router)
 app.include_router(pagos_router)
 app.include_router(mensajes_router)
 app.include_router(cuidados_router)
+app.include_router(ti_router)
 
 @app.on_event("startup")
 async def startup():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     async with AsyncSession(engine) as db:
-        r = await db.execute(select(Usuario).where(Usuario.email == "admin@iobal.com"))
+        # crear usuario TI por defecto
+        r = await db.execute(select(Usuario).where(Usuario.email == "ti@iobal.com"))
         if not r.scalar_one_or_none():
+            db.add(Usuario(nombre="TI", email="ti@iobal.com",
+                           password_hash=hash_password("Ti123!"), rol="ti"))
+        # crear admin por defecto
+        r2 = await db.execute(select(Usuario).where(Usuario.email == "admin@iobal.com"))
+        if not r2.scalar_one_or_none():
             db.add(Usuario(nombre="Admin", email="admin@iobal.com",
                            password_hash=hash_password("Admin123!"), rol="admin"))
-            await db.commit()
+        await db.commit()
 
 @app.get("/")
 async def root():

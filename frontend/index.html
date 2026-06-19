@@ -4,60 +4,148 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>IOBAL — Arrendamiento</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet"/>
   <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
-  <div id="login-screen" class="screen">
-    <div class="card login-card">
-      <div class="logo">IOBAL</div>
-      <div id="login-error" class="alert alert-error hidden"></div>
-      <div class="field">
-        <label>Correo</label>
-        <input type="email" id="email" placeholder="admin@iobal.com"/>
+
+  <!-- ═══════════════════════════════ LOGIN ═══════════════════════════════ -->
+  <div id="login-screen" class="login-bg min-vh-100 d-flex align-items-center justify-content-center px-3">
+    <div class="login-card">
+      <div class="login-brand">
+        <span class="brand-mark">IO</span><span class="brand-accent">BAL</span>
       </div>
-      <div class="field">
-        <label>Contraseña</label>
-        <input type="password" id="password" placeholder="••••••••"/>
+      <p class="login-sub">Gestión de arrendamiento</p>
+      <div id="login-error" class="iobal-alert iobal-alert-danger d-none"></div>
+      <div class="field-group">
+        <label class="field-label">Correo electrónico</label>
+        <input type="email" id="email" class="field-input" placeholder="admin@iobal.com"/>
       </div>
-      <button id="btn-login">Iniciar sesión</button>
+      <div class="field-group">
+        <label class="field-label">Contraseña</label>
+        <input type="password" id="password" class="field-input" placeholder="••••••••"/>
+      </div>
+      <button id="btn-login" class="btn-primary-iobal w-100">Iniciar sesión</button>
     </div>
   </div>
 
-  <div id="app-screen" class="screen hidden">
-    <aside class="sidebar">
-      <div class="sidebar-logo">IOBAL</div>
-      <nav>
-        <a class="nav-item active" data-section="propiedades"> Propiedades</a>
-        <a class="nav-item" data-section="inquilinos"> Inquilinos</a>
-        <a class="nav-item" data-section="contratos"> Contratos</a>
-        <a class="nav-item" data-section="pagos"> Pagos</a>
-        <a class="nav-item" data-section="mensajes"> Mensajes</a>
-        <a class="nav-item" data-section="cuidados"> Cuidados</a>
-        <a class="nav-item admin-only" data-section="usuarios"> Usuarios</a>
-      </nav>
-      <button id="btn-logout" class="btn-secondary">Cerrar sesión</button>
-    </aside>
+  <!-- ════════════════════════════════ APP ════════════════════════════════ -->
+  <div id="app-screen" class="d-none">
 
-    <main class="content">
-      <div class="content-header">
-        <h1 id="section-title">Propiedades</h1>
-        <button id="btn-new" class="btn-primary">+ Nuevo</button>
+    <!-- Topbar mobile -->
+    <header class="topbar">
+      <div class="topbar-brand">
+        <span class="brand-mark">IO</span><span class="brand-accent">BAL</span>
       </div>
-      <div id="alert-global" class="alert hidden"></div>
-      <div id="section-content"></div>
-    </main>
-  </div>
+      <button id="btn-hamburger" class="topbar-btn" aria-label="Menú">
+        <i class="bi bi-list"></i>
+      </button>
+    </header>
 
-  <div id="modal" class="modal-overlay hidden">
-    <div class="modal-card">
-      <div class="modal-header">
-        <h2 id="modal-title"></h2>
-        <button id="modal-close">✕</button>
-      </div>
-      <div id="modal-body"></div>
+    <div id="sidebar-overlay" class="sidebar-overlay d-none"></div>
+
+    <div class="app-shell">
+
+      <!-- ─── Sidebar ─── -->
+      <aside id="sidebar" class="sidebar">
+        <div class="sidebar-header">
+          <div class="sidebar-brand">
+            <span class="brand-mark">IO</span><span class="brand-accent">BAL</span>
+          </div>
+          <button id="btn-close-sidebar" class="sidebar-close d-lg-none">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+
+        <div class="sidebar-user">
+          <div class="user-avatar" id="user-avatar">A</div>
+          <div class="user-info">
+            <span class="user-name" id="user-name">Admin</span>
+            <span class="user-role" id="user-role">admin</span>
+          </div>
+        </div>
+
+        <nav class="sidebar-nav">
+          <span class="nav-section-label">Principal</span>
+          <a class="nav-item active" data-section="dashboard">
+            <i class="bi bi-grid-1x2"></i><span>Resumen</span>
+          </a>
+          <a class="nav-item" data-section="propiedades">
+            <i class="bi bi-building"></i><span>Propiedades</span>
+          </a>
+          <a class="nav-item" data-section="inquilinos">
+            <i class="bi bi-people"></i><span>Inquilinos</span>
+          </a>
+          <a class="nav-item" data-section="contratos">
+            <i class="bi bi-file-earmark-text"></i><span>Contratos</span>
+          </a>
+
+          <span class="nav-section-label mt-2">Finanzas</span>
+          <a class="nav-item" data-section="pagos">
+            <i class="bi bi-credit-card"></i><span>Pagos</span>
+          </a>
+
+          <span class="nav-section-label mt-2">Comunicación</span>
+          <a class="nav-item" data-section="mensajes">
+            <i class="bi bi-envelope"></i><span>Mensajes</span>
+          </a>
+          <a class="nav-item" data-section="cuidados">
+            <i class="bi bi-card-text"></i><span>Avisos</span>
+          </a>
+
+          <span class="nav-section-label mt-2 admin-only">Administración</span>
+          <a class="nav-item admin-only" data-section="usuarios">
+            <i class="bi bi-shield-person"></i><span>Usuarios</span>
+          </a>
+          <a class="nav-item ti-only" data-section="ti">
+            <i class="bi bi-cpu"></i><span>TI — Admins</span>
+          </a>
+        </nav>
+
+        <div class="sidebar-footer">
+          <button id="btn-logout" class="sidebar-logout">
+            <i class="bi bi-box-arrow-left"></i><span>Cerrar sesión</span>
+          </button>
+        </div>
+      </aside>
+
+      <!-- ─── Main content ─── -->
+      <main class="main-content">
+        <div class="page-header">
+          <div>
+            <h4 id="section-title" class="page-title">Resumen</h4>
+            <p id="section-sub" class="page-sub">Vista general del sistema</p>
+          </div>
+          <button id="btn-new" class="btn-primary-iobal d-none">
+            <i class="bi bi-plus-lg me-1"></i>Nuevo
+          </button>
+        </div>
+
+        <div id="alert-global" class="iobal-alert d-none mb-4"></div>
+        <div id="section-content"></div>
+      </main>
+
     </div>
   </div>
 
+  <!-- ═══════════════════════════════ MODAL ═══════════════════════════════ -->
+  <div class="modal fade" id="modal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-scrollable">
+      <div class="modal-content iobal-modal">
+        <div class="modal-header iobal-modal-header">
+          <h5 class="modal-title" id="modal-title"></h5>
+          <button type="button" class="iobal-modal-close" id="modal-close">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+        <div class="modal-body iobal-modal-body" id="modal-body"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
