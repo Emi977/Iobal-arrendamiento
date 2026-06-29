@@ -25,6 +25,7 @@ class Propiedad(Base):
     tipo: Mapped[str] = mapped_column(String(50))  # casa, departamento, local
     precio_renta: Mapped[float] = mapped_column(Float)
     status: Mapped[str] = mapped_column(String(20), default="vacante")  # vacante, ocupada
+    owner_id: Mapped[Optional[int]] = mapped_column(ForeignKey("usuarios.id"), nullable=True)  # admin responsable
     inquilino_id: Mapped[Optional[int]] = mapped_column(ForeignKey("inquilinos.id"), nullable=True)
     created_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now())
     inquilino: Mapped[Optional["Inquilino"]] = relationship(back_populates="propiedad")
@@ -63,7 +64,8 @@ class Pago(Base):
     mes: Mapped[int] = mapped_column(Integer)
     anio: Mapped[int] = mapped_column(Integer)
     total: Mapped[float] = mapped_column(Float, default=0)
-    status: Mapped[str] = mapped_column(String(20), default="pendiente")  # pendiente, pagado, atrasado
+    tipo: Mapped[str] = mapped_column(String(20), default="puntual")  # recurrente, puntual
+    status: Mapped[str] = mapped_column(String(20), default="pendiente")  # pendiente, pagado, atrasado, parcial
     created_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now())
     contrato: Mapped["Contrato"] = relationship(back_populates="pagos")
     conceptos: Mapped[list["ConceptoPago"]] = relationship(back_populates="pago", cascade="all, delete-orphan")
@@ -85,6 +87,7 @@ class Mensaje(Base):
     tipo: Mapped[str] = mapped_column(String(20), default="aviso")  # aviso, observacion
     contenido: Mapped[str] = mapped_column(Text)
     leido: Mapped[bool] = mapped_column(Boolean, default=False)
+    estado: Mapped[str] = mapped_column(String(20), default="pendiente")  # pendiente, visto, parcial, resuelto
     created_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now())
     usuario: Mapped["Usuario"] = relationship(back_populates="mensajes")
     propiedad: Mapped[Optional["Propiedad"]] = relationship(back_populates="mensajes")

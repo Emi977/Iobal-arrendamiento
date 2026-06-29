@@ -55,6 +55,7 @@ class PropiedadOut(BaseModel):
     tipo: str
     precio_renta: float
     status: str
+    owner_id: Optional[int]
     inquilino_id: Optional[int]
     created_at: datetime
     model_config = {"from_attributes": True}
@@ -115,10 +116,12 @@ class PagoCreate(BaseModel):
     contrato_id: int
     mes: int
     anio: int
+    tipo: str = "puntual"  # recurrente, puntual
     conceptos: list[ConceptoCreate]
 
 class PagoUpdate(BaseModel):
     status: Optional[str] = None
+    tipo: Optional[str] = None
 
 class PagoOut(BaseModel):
     id: int
@@ -126,6 +129,7 @@ class PagoOut(BaseModel):
     mes: int
     anio: int
     total: float
+    tipo: str
     status: str
     conceptos: list[ConceptoOut]
     created_at: datetime
@@ -135,6 +139,7 @@ class MensajeCreate(BaseModel):
     propiedad_id: Optional[int] = None
     tipo: str = "aviso"
     contenido: str
+    estado: str = "pendiente"  # pendiente, visto, parcial, resuelto
 
 class MensajeOut(BaseModel):
     id: int
@@ -143,6 +148,7 @@ class MensajeOut(BaseModel):
     tipo: str
     contenido: str
     leido: bool
+    estado: str
     created_at: datetime
     model_config = {"from_attributes": True}
 
@@ -160,4 +166,15 @@ class CuidadoOut(BaseModel):
     titulo: str
     contenido: str
     created_at: datetime
+    model_config = {"from_attributes": True}
+
+class AdeudoOut(BaseModel):
+    pago_id: int
+    contrato_id: int
+    mes: int
+    anio: int
+    total: float
+    tipo: str
+    status: str
+    conceptos: list[ConceptoOut]
     model_config = {"from_attributes": True}

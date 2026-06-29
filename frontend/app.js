@@ -1,7 +1,3 @@
-/* ═══════════════════════════════════════════════════════════════════════════
-   IOBAL — app.js
-   ═══════════════════════════════════════════════════════════════════════════ */
-
 const API = "/api/v1";
 let token = localStorage.getItem("token");
 let me = JSON.parse(localStorage.getItem("me") || "null");
@@ -10,7 +6,6 @@ let bsModal;
 
 const $ = id => document.getElementById(id);
 
-// ─── API ─────────────────────────────────────────────────────────────────────
 const api = async (method, path, body) => {
   const res = await fetch(API + path, {
     method,
@@ -25,7 +20,6 @@ const api = async (method, path, body) => {
   return data;
 };
 
-// ─── ALERTAS ─────────────────────────────────────────────────────────────────
 const showAlert = (msg, type = "danger") => {
   const el = $("alert-global");
   el.textContent = msg;
@@ -34,11 +28,9 @@ const showAlert = (msg, type = "danger") => {
   setTimeout(() => el.classList.add("d-none"), 4000);
 };
 
-// ─── BADGES ──────────────────────────────────────────────────────────────────
 const statusBadge = s =>
   `<span class="iobal-badge badge-${s || "secondary"}">${s || "—"}</span>`;
 
-// ─── MODAL ───────────────────────────────────────────────────────────────────
 const openModal = (title, html, onSave) => {
   $("modal-title").textContent = title;
   $("modal-body").innerHTML = html + `
@@ -52,7 +44,6 @@ const openModal = (title, html, onSave) => {
 const closeModal = () => bsModal.hide();
 $("modal-close").onclick = closeModal;
 
-// ─── SIDEBAR / HAMBURGER ──────────────────────────────────────────────────────
 const sidebar = $("sidebar");
 const overlay = $("sidebar-overlay");
 const openSidebar  = () => { sidebar.classList.add("open"); overlay.classList.remove("d-none"); };
@@ -62,7 +53,6 @@ $("btn-hamburger").onclick    = openSidebar;
 $("btn-close-sidebar").onclick = closeSidebar;
 overlay.onclick               = closeSidebar;
 
-// ─── NAVEGACIÓN ──────────────────────────────────────────────────────────────
 const sectionMeta = {
   dashboard:   { title: "Resumen",     sub: "Vista general del sistema",          nuevo: false },
   propiedades: { title: "Propiedades", sub: "Gestión de inmuebles",               nuevo: true  },
@@ -72,6 +62,7 @@ const sectionMeta = {
   mensajes:    { title: "Mensajes",    sub: "Avisos y observaciones",             nuevo: true  },
   cuidados:    { title: "Avisos",      sub: "Posts para inquilinos",              nuevo: true  },
   usuarios:    { title: "Usuarios",    sub: "Administración de cuentas",          nuevo: true  },
+  adeudos:     { title: "Mis adeudos",  sub: "Pagos pendientes y atrasados",       nuevo: false },
 };
 
 document.querySelectorAll(".nav-item").forEach(a => {
@@ -89,7 +80,6 @@ document.querySelectorAll(".nav-item").forEach(a => {
   };
 });
 
-// ─── LOGIN / LOGOUT ───────────────────────────────────────────────────────────
 $("btn-login").onclick = async () => {
   const btn = $("btn-login");
   btn.textContent = "Ingresando...";
@@ -121,7 +111,6 @@ $("btn-logout").onclick = () => {
   $("login-screen").classList.remove("d-none");
 };
 
-// ─── DASHBOARD ───────────────────────────────────────────────────────────────
 async function renderDashboard() {
   $("section-content").innerHTML = `<div class="text-muted small">Cargando...</div>`;
   try {
@@ -214,7 +203,6 @@ async function renderDashboard() {
   }
 }
 
-// ─── PROPIEDADES ──────────────────────────────────────────────────────────────
 async function renderPropiedades() {
   const data = await api("GET", "/propiedades");
   $("section-content").innerHTML = `
@@ -272,7 +260,6 @@ async function deletePropiedad(id) {
   catch(e) { showAlert(e.message); }
 }
 
-// ─── INQUILINOS ───────────────────────────────────────────────────────────────
 async function renderInquilinos() {
   const data = await api("GET", "/inquilinos");
   $("section-content").innerHTML = `
@@ -313,7 +300,6 @@ function formInquilino(i = {}) {
 }
 async function editInquilino(id) { formInquilino(await api("GET",`/inquilinos/${id}`)); }
 
-// ─── CONTRATOS ────────────────────────────────────────────────────────────────
 async function renderContratos() {
   const data = await api("GET", "/contratos");
   $("section-content").innerHTML = `
@@ -369,7 +355,6 @@ function formContrato(c = {}) {
 }
 async function editContrato(id) { formContrato(await api("GET",`/contratos/${id}`)); }
 
-// ─── PAGOS ────────────────────────────────────────────────────────────────────
 async function renderPagos() {
   const data = await api("GET", "/pagos");
   $("section-content").innerHTML = `
@@ -425,6 +410,12 @@ function formPago() {
       <div class="col-6 mb-3"><label class="form-label">Mes</label><input type="number" id="f-mes" class="form-control" min="1" max="12"/></div>
       <div class="col-6 mb-3"><label class="form-label">Año</label><input type="number" id="f-anio" class="form-control" value="${new Date().getFullYear()}"/></div>
     </div>
+    <div class="mb-3"><label class="form-label">Tipo de pago</label>
+      <select id="f-tipo-pago" class="form-select">
+        <option value="puntual">Puntual</option>
+        <option value="recurrente">Recurrente</option>
+      </select>
+    </div>
     <label class="form-label">Conceptos</label>
     <div id="conceptos-list" class="mb-2"></div>
     <button class="action-btn action-btn-edit mb-3"
@@ -445,23 +436,35 @@ function formPago() {
   setTimeout(window.renderConceptos, 50);
 }
 
-// ─── MENSAJES ─────────────────────────────────────────────────────────────────
 async function renderMensajes() {
   const data = await api("GET", "/mensajes");
-  $("section-content").innerHTML = data.length
-    ? `<div class="d-flex flex-column gap-3">${data.map(m => `
-        <div class="msg-card ${!m.leido?"unread":""}">
-          <div class="msg-meta">
-            <span class="msg-tipo">${m.tipo}${m.propiedad_id?` · Prop. ${m.propiedad_id}`:""}</span>
-            <span class="msg-date">${new Date(m.created_at).toLocaleDateString()}</span>
+  const estadoOpts = ["pendiente","visto","parcial","resuelto"];
+  $("section-content").innerHTML = `
+    <div class="msg-list">${data.length ? data.map(m => `
+      <div class="iobal-msg-item ${!m.leido ? "unread" : ""}">
+        <div class="msg-header">
+          <div class="d-flex align-items-center gap-2">
+            <span class="iobal-badge badge-${m.tipo === "aviso" ? "activo" : "pendiente"}">${m.tipo}</span>
+            ${statusBadge(m.estado || "pendiente")}
+            ${m.propiedad_id ? `<span class="td-muted small">Prop. ${m.propiedad_id}</span>` : ""}
           </div>
-          <div class="msg-body">${m.contenido}</div>
-          <div class="msg-actions">
-            ${!m.leido?`<button class="action-btn action-btn-edit" onclick="leerMensaje(${m.id})">Marcar leído</button>`:""}
-            <button class="action-btn action-btn-danger" onclick="deleteMensaje(${m.id})">Eliminar</button>
-          </div>
-        </div>`).join("")}</div>`
-    : `<div class="empty-state"><i class="bi bi-envelope"></i><p>No hay mensajes</p></div>`;
+          <span class="td-muted small">${new Date(m.created_at).toLocaleDateString()}</span>
+        </div>
+        <p class="msg-content">${m.contenido}</p>
+        <div class="d-flex gap-2 align-items-center flex-wrap mt-2">
+          <select class="form-select form-select-sm" style="width:auto" onchange="cambiarEstadoMsg(${m.id}, this.value)">
+            ${estadoOpts.map(e => `<option ${m.estado===e?"selected":""}>${e}</option>`).join("")}
+          </select>
+          <button class="action-btn action-btn-danger" onclick="deleteMensaje(${m.id})">Eliminar</button>
+        </div>
+      </div>`).join("")
+    : "<div class=\"empty-state\"><i class=\"bi bi-chat\"></i><p>Sin mensajes</p></div>"}
+    </div>`;
+}
+
+async function cambiarEstadoMsg(id, estado) {
+  try { await api("PATCH", `/mensajes/${id}/estado?estado=${estado}`); renderMensajes(); }
+  catch(e) { showAlert(e.message); }
 }
 
 async function leerMensaje(id) { await api("PATCH",`/mensajes/${id}/leer`); renderMensajes(); }
@@ -486,7 +489,6 @@ function formMensaje() {
   });
 }
 
-// ─── CUIDADOS / AVISOS ────────────────────────────────────────────────────────
 async function renderCuidados() {
   const data = await api("GET", "/cuidados");
   $("section-content").innerHTML = data.length
@@ -527,7 +529,6 @@ async function deleteCuidado(id) {
   catch(e) { showAlert(e.message); }
 }
 
-// ─── USUARIOS ─────────────────────────────────────────────────────────────────
 async function renderUsuarios() {
   const data = await api("GET", "/usuarios");
   $("section-content").innerHTML = `
@@ -586,7 +587,6 @@ async function deleteUsuario(id) {
   catch(e) { showAlert(e.message); }
 }
 
-
 async function renderTi() {
   const data = await api("GET", "/ti/admins");
   $("section-content").innerHTML = `
@@ -638,6 +638,27 @@ async function deleteAdminTi(id) {
   catch(e) { showAlert(e.message); }
 }
 
+async function renderAdeudos() {
+  const data = await api("GET", "/pagos/mis-adeudos");
+  $("section-content").innerHTML = data.length ? `
+    <div class="iobal-table-wrap">
+      <div class="table-responsive">
+        <table class="iobal-table">
+          <thead><tr><th>Mes/Año</th><th>Tipo</th><th>Conceptos</th><th>Total</th><th>Estado</th></tr></thead>
+          <tbody>${data.map(p => `
+            <tr>
+              <td>${p.mes}/${p.anio}</td>
+              <td>${p.tipo === "recurrente" ? '<span class="iobal-badge badge-activo">recurrente</span>' : '<span class="iobal-badge badge-pendiente">puntual</span>'}</td>
+              <td class="td-muted small">${p.conceptos.map(c => `${c.tipo}: $${c.monto}`).join(", ")}</td>
+              <td class="td-strong">$${p.total.toLocaleString()}</td>
+              <td>${statusBadge(p.status)}</td>
+            </tr>`).join("")}
+          </tbody>
+        </table>
+      </div>
+    </div>` : `<div class="empty-state"><i class="bi bi-check-circle"></i><p>Sin adeudos pendientes</p></div>`;
+}
+
 const sections = {
   dashboard:   renderDashboard,
   propiedades: renderPropiedades,
@@ -647,6 +668,7 @@ const sections = {
   mensajes:    renderMensajes,
   cuidados:    renderCuidados,
   usuarios:    renderUsuarios,
+  adeudos:     renderAdeudos,
   ti:          renderTi,
 };
 const renderSection = s => sections[s]?.();
@@ -665,7 +687,6 @@ $("btn-new").onclick = () => {
   forms[currentSection]?.();
 };
 
-// ─── INIT ─────────────────────────────────────────────────────────────────────
 function initApp() {
   $("login-screen").classList.add("d-none");
   $("app-screen").classList.remove("d-none");
