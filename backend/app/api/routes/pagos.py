@@ -3,8 +3,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.db.database import get_db
 from app.models import Pago, ConceptoPago, Contrato
-from app.schemas import PagoCreate, PagoOut, PagoUpdate, AdeudoOut
+from app.schemas import PagoCreate, PagoOut, PagoUpdate, AdeudoOut, GenerarRecurrentesOut
 from app.core.permissions import require_admin, get_current_user, TokenPayload
+from app.services.recurrencia import generar_pagos_recurrentes
 
 router = APIRouter(prefix="/api/v1/pagos", tags=["pagos"])
 
@@ -20,8 +21,16 @@ async def crear(body: PagoCreate, db: AsyncSession = Depends(get_db), _=Depends(
     await db.refresh(p, ["conceptos"])
     return p
 
+@router.post("/generar-recurrentes", response_model=GenerarRecurrentesOut)
+async def generar_recurrentes(db: AsyncSession = Depends(get_db), _=Depends(require_admin)):
+    """Fuerza la generación de los adeudos recurrentes del mes en curso (normalmente
+    no hace falta llamarlo a mano: se ejecuta solo al consultar /pagos o /pagos/mis-adeudos)."""
+    generados = await generar_pagos_recurrentes(db)
+    return GenerarRecurrentesOut(generados=len(generados), pagos=generados)
+
 @router.get("", response_model=list[PagoOut])
 async def listar(contrato_id: int | None = None, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+    await generar_pagos_recurrentes(db)
     q = select(Pago)
     if contrato_id:
         q = q.where(Pago.contrato_id == contrato_id)
@@ -33,6 +42,7 @@ async def listar(contrato_id: int | None = None, db: AsyncSession = Depends(get_
 
 @router.get("/mis-adeudos", response_model=list[AdeudoOut])
 async def mis_adeudos(db: AsyncSession = Depends(get_db), me: TokenPayload = Depends(get_current_user)):
+    await generar_pagos_recurrentes(db)
     # buscar contratos del inquilino
     from app.models import Inquilino
     r = await db.execute(select(Inquilino).where(Inquilino.usuario_id == me.usuario_id))

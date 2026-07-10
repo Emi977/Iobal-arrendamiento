@@ -38,6 +38,7 @@ class Inquilino(Base):
     usuario_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), unique=True)
     telefono: Mapped[Optional[str]] = mapped_column(String(20))
     referencias: Mapped[Optional[str]] = mapped_column(Text)
+    estado: Mapped[str] = mapped_column(String(10), default="vigente")  # vigente, baja
     created_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now())
     usuario: Mapped["Usuario"] = relationship(back_populates="inquilino")
     propiedad: Mapped[Optional["Propiedad"]] = relationship(back_populates="inquilino")
@@ -52,6 +53,25 @@ class Contrato(Base):
     fecha_fin: Mapped[Date] = mapped_column(Date)
     monto_mensual: Mapped[float] = mapped_column(Float)
     status: Mapped[str] = mapped_column(String(20), default="activo")  # activo, finalizado, cancelado
+    descripcion: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # cobro recurrente
+    cobro_recurrente: Mapped[bool] = mapped_column(Boolean, default=True)
+    dia_cobro: Mapped[int] = mapped_column(Integer, default=1)  # día del mes (1-28) en que se genera el cobro
+
+    # datos del aval
+    aval_nombre: Mapped[Optional[str]] = mapped_column(String(150), nullable=True)
+    aval_calle: Mapped[Optional[str]] = mapped_column(String(150), nullable=True)
+    aval_numero: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    aval_colonia: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    aval_ciudad: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    aval_estado: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    aval_cp: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
+    aval_no_predial: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    aval_email: Mapped[Optional[str]] = mapped_column(String(150), nullable=True)
+    aval_telefono_casa: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    aval_telefono_celular: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+
     created_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now())
     propiedad: Mapped["Propiedad"] = relationship(back_populates="contratos")
     inquilino: Mapped["Inquilino"] = relationship(back_populates="contratos")

@@ -61,19 +61,28 @@ class PropiedadOut(BaseModel):
     model_config = {"from_attributes": True}
 
 class InquilinoCreate(BaseModel):
-    usuario_id: int
+    nombre: str
+    email: EmailStr
+    password: str
     telefono: Optional[str] = None
     referencias: Optional[str] = None
+    estado: str = "vigente"  # vigente, baja
 
 class InquilinoUpdate(BaseModel):
+    nombre: Optional[str] = None
+    email: Optional[EmailStr] = None
+    password: Optional[str] = None
     telefono: Optional[str] = None
     referencias: Optional[str] = None
+    estado: Optional[str] = None  # vigente, baja
 
 class InquilinoOut(BaseModel):
     id: int
-    usuario_id: int
     telefono: Optional[str]
     referencias: Optional[str]
+    estado: str
+    nombre: Optional[str] = None
+    email: Optional[str] = None
     created_at: datetime
     model_config = {"from_attributes": True}
 
@@ -83,11 +92,45 @@ class ContratoCreate(BaseModel):
     fecha_inicio: date
     fecha_fin: date
     monto_mensual: float
+    descripcion: Optional[str] = None
+
+    # cobro recurrente
+    cobro_recurrente: bool = True
+    dia_cobro: int = 1
+
+    # datos del aval
+    aval_nombre: Optional[str] = None
+    aval_calle: Optional[str] = None
+    aval_numero: Optional[str] = None
+    aval_colonia: Optional[str] = None
+    aval_ciudad: Optional[str] = None
+    aval_estado: Optional[str] = None
+    aval_cp: Optional[str] = None
+    aval_no_predial: Optional[str] = None
+    aval_email: Optional[EmailStr] = None
+    aval_telefono_casa: Optional[str] = None
+    aval_telefono_celular: Optional[str] = None
 
 class ContratoUpdate(BaseModel):
     fecha_fin: Optional[date] = None
     monto_mensual: Optional[float] = None
     status: Optional[str] = None
+    descripcion: Optional[str] = None
+
+    cobro_recurrente: Optional[bool] = None
+    dia_cobro: Optional[int] = None
+
+    aval_nombre: Optional[str] = None
+    aval_calle: Optional[str] = None
+    aval_numero: Optional[str] = None
+    aval_colonia: Optional[str] = None
+    aval_ciudad: Optional[str] = None
+    aval_estado: Optional[str] = None
+    aval_cp: Optional[str] = None
+    aval_no_predial: Optional[str] = None
+    aval_email: Optional[EmailStr] = None
+    aval_telefono_casa: Optional[str] = None
+    aval_telefono_celular: Optional[str] = None
 
 class ContratoOut(BaseModel):
     id: int
@@ -97,6 +140,23 @@ class ContratoOut(BaseModel):
     fecha_fin: date
     monto_mensual: float
     status: str
+    descripcion: Optional[str] = None
+
+    cobro_recurrente: bool
+    dia_cobro: int
+
+    aval_nombre: Optional[str] = None
+    aval_calle: Optional[str] = None
+    aval_numero: Optional[str] = None
+    aval_colonia: Optional[str] = None
+    aval_ciudad: Optional[str] = None
+    aval_estado: Optional[str] = None
+    aval_cp: Optional[str] = None
+    aval_no_predial: Optional[str] = None
+    aval_email: Optional[str] = None
+    aval_telefono_casa: Optional[str] = None
+    aval_telefono_celular: Optional[str] = None
+
     created_at: datetime
     model_config = {"from_attributes": True}
 
@@ -178,3 +238,7 @@ class AdeudoOut(BaseModel):
     status: str
     conceptos: list[ConceptoOut]
     model_config = {"from_attributes": True}
+
+class GenerarRecurrentesOut(BaseModel):
+    generados: int
+    pagos: list[PagoOut]

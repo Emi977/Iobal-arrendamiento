@@ -646,6 +646,40 @@ body {
   font-size: 13px;
 }
 
+.form-section {
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-medio);
+  padding: 1rem 1.1rem 0.25rem;
+  margin-bottom: 1.1rem;
+  background: var(--bg);
+}
+
+.form-section:last-of-type {
+  margin-bottom: 0;
+}
+
+.form-section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--azul);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 0.9rem;
+}
+
+.iobal-modal-body .form-check-label {
+  font-size: 13px;
+  color: var(--texto);
+}
+
+.iobal-modal-body .form-check-input:checked {
+  background-color: var(--azul);
+  border-color: var(--azul);
+}
+
 .modal-footer-actions {
   display: flex;
   justify-content: flex-end;

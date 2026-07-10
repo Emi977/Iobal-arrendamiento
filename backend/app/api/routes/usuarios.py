@@ -20,8 +20,14 @@ async def crear(body: UsuarioCreate, db: AsyncSession = Depends(get_db), _=Depen
     return u
 
 @router.get("", response_model=list[UsuarioOut])
-async def listar(db: AsyncSession = Depends(get_db), _=Depends(require_admin)):
-    r = await db.execute(select(Usuario).where(Usuario.activo == True))
+async def listar(rol: str | None = None, db: AsyncSession = Depends(get_db), _=Depends(require_admin)):
+    q = select(Usuario).where(Usuario.activo == True)
+    if rol:
+        q = q.where(Usuario.rol == rol)
+    else:
+        # la sección "Usuarios" no muestra inquilinos; estos se gestionan en "Inquilinos"
+        q = q.where(Usuario.rol != "inquilino")
+    r = await db.execute(q)
     return r.scalars().all()
 
 @router.get("/{id}", response_model=UsuarioOut)

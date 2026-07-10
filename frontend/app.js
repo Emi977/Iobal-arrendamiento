@@ -267,17 +267,22 @@ async function renderInquilinos() {
       <div class="table-responsive">
         <table class="iobal-table">
           <thead>
-            <tr><th>ID</th><th>Usuario ID</th><th>Teléfono</th><th>Referencias</th><th></th></tr>
+            <tr><th>ID</th><th>Nombre</th><th>Correo</th><th>Teléfono</th><th>Referencias</th><th>Estado</th><th></th></tr>
           </thead>
           <tbody>
             ${data.length ? data.map(i => `
               <tr>
-                <td>${i.id}</td><td>${i.usuario_id}</td>
+                <td>${i.id}</td>
+                <td class="td-strong">${i.nombre || "—"}</td>
+                <td class="td-muted">${i.email || "—"}</td>
                 <td>${i.telefono || "—"}</td>
                 <td class="td-muted">${i.referencias ? i.referencias.slice(0,60)+"…" : "—"}</td>
+                <td>${i.estado === "vigente"
+                  ? `<span class="iobal-badge badge-activo">Vigente</span>`
+                  : `<span class="iobal-badge badge-cancelado">Baja</span>`}</td>
                 <td><button class="action-btn action-btn-edit" onclick="editInquilino(${i.id})">Editar</button></td>
               </tr>`).join("")
-            : `<tr><td colspan="5"><div class="empty-state"><i class="bi bi-people"></i><p>Sin inquilinos registrados</p></div></td></tr>`}
+            : `<tr><td colspan="7"><div class="empty-state"><i class="bi bi-people"></i><p>Sin inquilinos registrados</p></div></td></tr>`}
           </tbody>
         </table>
       </div>
@@ -285,15 +290,34 @@ async function renderInquilinos() {
 }
 
 function formInquilino(i = {}) {
-  openModal(i.id ? "Editar inquilino" : "Nuevo inquilino", `
-    ${!i.id ? `<div class="mb-3"><label class="form-label">Usuario ID</label><input type="number" id="f-uid" class="form-control"/></div>` : ""}
+  const isEdit = !!i.id;
+  openModal(isEdit ? "Editar inquilino" : "Nuevo inquilino", `
+    <div class="mb-3"><label class="form-label">Nombre</label><input id="f-nombre" class="form-control" value="${i.nombre||""}"/></div>
+    <div class="mb-3"><label class="form-label">Correo</label><input type="email" id="f-email" class="form-control" value="${i.email||""}"/></div>
+    <div class="mb-3">
+      <label class="form-label">${isEdit ? "Nueva contraseña (déjalo vacío para no cambiarla)" : "Contraseña"}</label>
+      <input type="password" id="f-pass" class="form-control"/>
+    </div>
     <div class="mb-3"><label class="form-label">Teléfono</label><input id="f-tel" class="form-control" value="${i.telefono||""}"/></div>
     <div class="mb-3"><label class="form-label">Referencias</label><textarea id="f-ref" class="form-control" rows="3">${i.referencias||""}</textarea></div>
+    <div class="mb-3"><label class="form-label">Estado</label>
+      <select id="f-estado" class="form-select">
+        <option value="vigente" ${i.estado!=="baja"?"selected":""}>Vigente</option>
+        <option value="baja" ${i.estado==="baja"?"selected":""}>Baja</option>
+      </select>
+    </div>
   `, async () => {
-    const body = { telefono: $("f-tel").value, referencias: $("f-ref").value,
-                   ...(!i.id ? { usuario_id: parseInt($("f-uid").value) } : {}) };
+    const pass = $("f-pass").value;
+    const body = {
+      nombre: $("f-nombre").value,
+      email: $("f-email").value,
+      telefono: $("f-tel").value,
+      referencias: $("f-ref").value,
+      estado: $("f-estado").value,
+      ...(pass ? { password: pass } : {}),
+    };
     try {
-      i.id ? await api("PATCH",`/inquilinos/${i.id}`,body) : await api("POST","/inquilinos",body);
+      isEdit ? await api("PATCH",`/inquilinos/${i.id}`,body) : await api("POST","/inquilinos",body);
       closeModal(); renderInquilinos(); showAlert("Guardado","success");
     } catch(e) { showAlert(e.message); }
   });
@@ -301,57 +325,146 @@ function formInquilino(i = {}) {
 async function editInquilino(id) { formInquilino(await api("GET",`/inquilinos/${id}`)); }
 
 async function renderContratos() {
-  const data = await api("GET", "/contratos");
+  const [data, inquilinos] = await Promise.all([
+    api("GET", "/contratos"),
+    api("GET", "/inquilinos").catch(() => []),
+  ]);
+  const inqMap = Object.fromEntries(inquilinos.map(i => [i.id, i.nombre || `Inquilino #${i.id}`]));
   $("section-content").innerHTML = `
     <div class="iobal-table-wrap">
       <div class="table-responsive">
         <table class="iobal-table">
           <thead>
-            <tr><th>ID</th><th>Propiedad</th><th>Inquilino</th><th>Inicio</th><th>Fin</th><th>Monto</th><th>Estado</th><th></th></tr>
+            <tr><th>ID</th><th>Propiedad</th><th>Inquilino</th><th>Inicio</th><th>Fin</th><th>Monto</th><th>Cobro</th><th>Aval</th><th>Estado</th><th></th></tr>
           </thead>
           <tbody>
             ${data.length ? data.map(c => `
               <tr>
-                <td>${c.id}</td><td>${c.propiedad_id}</td><td>${c.inquilino_id}</td>
+                <td>${c.id}</td><td>${c.propiedad_id}</td><td>${inqMap[c.inquilino_id] || `#${c.inquilino_id}`}</td>
                 <td class="td-muted">${c.fecha_inicio}</td><td class="td-muted">${c.fecha_fin}</td>
                 <td class="td-strong">$${c.monto_mensual.toLocaleString()}</td>
+                <td>${c.cobro_recurrente
+                  ? `<span class="iobal-badge badge-activo"><i class="bi bi-arrow-repeat"></i> Recurrente · día ${c.dia_cobro}</span>`
+                  : `<span class="iobal-badge badge-pendiente">Puntual</span>`}</td>
+                <td class="td-muted">${c.aval_nombre || "—"}</td>
                 <td>${statusBadge(c.status)}</td>
                 <td><button class="action-btn action-btn-edit" onclick="editContrato(${c.id})">Editar</button></td>
               </tr>`).join("")
-            : `<tr><td colspan="8"><div class="empty-state"><i class="bi bi-file-earmark-text"></i><p>Sin contratos registrados</p></div></td></tr>`}
+            : `<tr><td colspan="10"><div class="empty-state"><i class="bi bi-file-earmark-text"></i><p>Sin contratos registrados</p></div></td></tr>`}
           </tbody>
         </table>
       </div>
     </div>`;
 }
 
-function formContrato(c = {}) {
-  openModal(c.id ? "Editar contrato" : "Nuevo contrato", `
-    ${!c.id ? `
-      <div class="mb-3"><label class="form-label">Propiedad ID</label><input type="number" id="f-pid" class="form-control"/></div>
-      <div class="mb-3"><label class="form-label">Inquilino ID</label><input type="number" id="f-iid" class="form-control"/></div>
+async function formContrato(c = {}) {
+  const isEdit = !!c.id;
+  openModal(isEdit ? "Editar contrato" : "Nuevo contrato", `
+    <div class="form-section">
+      <div class="form-section-title"><i class="bi bi-file-earmark-text"></i> Datos del contrato</div>
+      ${!isEdit ? `
+        <div class="row g-2">
+          <div class="col-12 col-sm-6 mb-3"><label class="form-label">Propiedad ID</label><input type="number" id="f-pid" class="form-control"/></div>
+          <div class="col-12 col-sm-6 mb-3">
+            <label class="form-label">Inquilino</label>
+            <select id="f-iid" class="form-select"><option>Cargando inquilinos activos…</option></select>
+          </div>
+        </div>
+        <div class="row g-2">
+          <div class="col-12 col-sm-6 mb-3"><label class="form-label">Fecha inicio</label><input type="date" id="f-fi" class="form-control"/></div>
+          <div class="col-12 col-sm-6 mb-3"><label class="form-label">Fecha fin</label><input type="date" id="f-ff" class="form-control"/></div>
+        </div>
+      ` : `
+        <div class="row g-2">
+          <div class="col-12 col-sm-6 mb-3"><label class="form-label">Fecha fin</label><input type="date" id="f-ff" class="form-control" value="${c.fecha_fin || ""}"/></div>
+          <div class="col-12 col-sm-6 mb-3"><label class="form-label">Estado</label>
+            <select id="f-status" class="form-select">
+              ${["activo","finalizado","cancelado"].map(s=>`<option ${c.status===s?"selected":""}>${s}</option>`).join("")}
+            </select>
+          </div>
+        </div>
+      `}
+      <div class="mb-3">
+        <label class="form-label">Descripción</label>
+        <textarea id="f-desc" class="form-control" rows="3" placeholder="Condiciones particulares, observaciones u otros detalles del contrato...">${c.descripcion || ""}</textarea>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title"><i class="bi bi-credit-card"></i> Cobro</div>
+      <div class="mb-3"><label class="form-label">Monto mensual</label><input type="number" id="f-monto" class="form-control" value="${c.monto_mensual ?? ""}"/></div>
+      <div class="form-check form-switch mb-3">
+        <input class="form-check-input" type="checkbox" id="f-recurrente" ${c.cobro_recurrente !== false ? "checked" : ""}/>
+        <label class="form-check-label" for="f-recurrente">Cobro recurrente (genera el pago automáticamente cada mes)</label>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Día de cobro</label>
+        <input type="number" min="1" max="28" id="f-dia-cobro" class="form-control" value="${c.dia_cobro || 1}"/>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title"><i class="bi bi-person-badge"></i> Datos del aval</div>
+      <div class="mb-3"><label class="form-label">Nombre</label><input id="f-aval-nombre" class="form-control" value="${c.aval_nombre || ""}"/></div>
+
       <div class="row g-2">
-        <div class="col-12 col-sm-6 mb-3"><label class="form-label">Fecha inicio</label><input type="date" id="f-fi" class="form-control"/></div>
-        <div class="col-12 col-sm-6 mb-3"><label class="form-label">Fecha fin</label><input type="date" id="f-ff" class="form-control"/></div>
+        <div class="col-12 col-sm-8 mb-3"><label class="form-label">Calle</label><input id="f-aval-calle" class="form-control" value="${c.aval_calle || ""}"/></div>
+        <div class="col-12 col-sm-4 mb-3"><label class="form-label">Número</label><input id="f-aval-numero" class="form-control" value="${c.aval_numero || ""}"/></div>
       </div>
-      <div class="mb-3"><label class="form-label">Monto mensual</label><input type="number" id="f-monto" class="form-control"/></div>
-    ` : `
-      <div class="mb-3"><label class="form-label">Fecha fin</label><input type="date" id="f-ff" class="form-control" value="${c.fecha_fin}"/></div>
-      <div class="mb-3"><label class="form-label">Monto mensual</label><input type="number" id="f-monto" class="form-control" value="${c.monto_mensual}"/></div>
-      <div class="mb-3"><label class="form-label">Estado</label>
-        <select id="f-status" class="form-select">
-          ${["activo","finalizado","cancelado"].map(s=>`<option ${c.status===s?"selected":""}>${s}</option>`).join("")}
-        </select>
+      <div class="row g-2">
+        <div class="col-12 col-sm-6 mb-3"><label class="form-label">Colonia</label><input id="f-aval-colonia" class="form-control" value="${c.aval_colonia || ""}"/></div>
+        <div class="col-12 col-sm-6 mb-3"><label class="form-label">Ciudad</label><input id="f-aval-ciudad" class="form-control" value="${c.aval_ciudad || ""}"/></div>
       </div>
-    `}
+      <div class="row g-2">
+        <div class="col-12 col-sm-6 mb-3"><label class="form-label">Estado</label><input id="f-aval-estado" class="form-control" value="${c.aval_estado || ""}"/></div>
+        <div class="col-12 col-sm-6 mb-3"><label class="form-label">Código postal</label><input id="f-aval-cp" class="form-control" value="${c.aval_cp || ""}"/></div>
+      </div>
+
+      <div class="mb-3"><label class="form-label">No. de predial</label><input id="f-aval-predial" class="form-control" value="${c.aval_no_predial || ""}"/></div>
+      <div class="mb-3"><label class="form-label">Email</label><input type="email" id="f-aval-email" class="form-control" value="${c.aval_email || ""}"/></div>
+
+      <div class="row g-2">
+        <div class="col-12 col-sm-6 mb-3"><label class="form-label">Teléfono casa</label><input id="f-aval-tel-casa" class="form-control" value="${c.aval_telefono_casa || ""}"/></div>
+        <div class="col-12 col-sm-6 mb-3"><label class="form-label">Teléfono celular</label><input id="f-aval-tel-cel" class="form-control" value="${c.aval_telefono_celular || ""}"/></div>
+      </div>
+    </div>
   `, async () => {
+    const orNull = v => (v && v.trim() !== "" ? v.trim() : null);
+    const body = {
+      descripcion: orNull($("f-desc").value),
+      cobro_recurrente: $("f-recurrente").checked,
+      dia_cobro: parseInt($("f-dia-cobro").value) || 1,
+      monto_mensual: parseFloat($("f-monto").value),
+      aval_nombre: orNull($("f-aval-nombre").value),
+      aval_calle: orNull($("f-aval-calle").value),
+      aval_numero: orNull($("f-aval-numero").value),
+      aval_colonia: orNull($("f-aval-colonia").value),
+      aval_ciudad: orNull($("f-aval-ciudad").value),
+      aval_estado: orNull($("f-aval-estado").value),
+      aval_cp: orNull($("f-aval-cp").value),
+      aval_no_predial: orNull($("f-aval-predial").value),
+      aval_email: orNull($("f-aval-email").value),
+      aval_telefono_casa: orNull($("f-aval-tel-casa").value),
+      aval_telefono_celular: orNull($("f-aval-tel-cel").value),
+      ...(isEdit
+        ? { fecha_fin: $("f-ff").value, status: $("f-status").value }
+        : { propiedad_id: parseInt($("f-pid").value), inquilino_id: parseInt($("f-iid").value),
+            fecha_inicio: $("f-fi").value, fecha_fin: $("f-ff").value }),
+    };
     try {
-      c.id
-        ? await api("PATCH",`/contratos/${c.id}`,{ fecha_fin:$("f-ff").value, monto_mensual:parseFloat($("f-monto").value), status:$("f-status").value })
-        : await api("POST","/contratos",{ propiedad_id:parseInt($("f-pid").value), inquilino_id:parseInt($("f-iid").value), fecha_inicio:$("f-fi").value, fecha_fin:$("f-ff").value, monto_mensual:parseFloat($("f-monto").value) });
+      isEdit ? await api("PATCH",`/contratos/${c.id}`, body) : await api("POST","/contratos", body);
       closeModal(); renderContratos(); showAlert("Guardado","success");
     } catch(e) { showAlert(e.message); }
   });
+
+  if (!isEdit) {
+    try {
+      const inquilinos = await api("GET", "/inquilinos?estado=vigente");
+      $("f-iid").innerHTML = inquilinos.length
+        ? inquilinos.map(i => `<option value="${i.id}">${i.nombre || `Inquilino #${i.id}`}</option>`).join("")
+        : `<option value="">No hay inquilinos vigentes disponibles</option>`;
+    } catch(e) { $("f-iid").innerHTML = `<option value="">Error al cargar inquilinos</option>`; }
+  }
 }
 async function editContrato(id) { formContrato(await api("GET",`/contratos/${id}`)); }
 
@@ -568,7 +681,7 @@ function formUsuario(u = {}) {
     ${!u.id?`<div class="mb-3"><label class="form-label">Contraseña</label><input type="password" id="f-pass" class="form-control"/></div>`:""}
     <div class="mb-3"><label class="form-label">Rol</label>
       <select id="f-rol" class="form-select">
-        ${["inquilino","propietario","admin"].map(r=>`<option ${u.rol===r?"selected":""}>${r}</option>`).join("")}
+        ${["propietario","admin"].map(r=>`<option ${u.rol===r?"selected":""}>${r}</option>`).join("")}
       </select>
     </div>
   `, async () => {
