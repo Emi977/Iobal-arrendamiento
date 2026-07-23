@@ -4,7 +4,7 @@ from sqlalchemy import select, or_
 from app.db.database import get_db
 from app.models import Propiedad
 from app.schemas import PropiedadCreate, PropiedadOut, PropiedadUpdate
-from app.core.permissions import require_admin, get_current_user, TokenPayload
+from app.core.permissions import require_admin, require_admin_o_propietario, get_current_user, TokenPayload
 
 router = APIRouter(prefix="/api/v1/propiedades", tags=["propiedades"])
 
@@ -15,10 +15,10 @@ async def crear(body: PropiedadCreate, db: AsyncSession = Depends(get_db), me: T
     return p
 
 @router.get("", response_model=list[PropiedadOut])
-async def listar(db: AsyncSession = Depends(get_db), me: TokenPayload = Depends(get_current_user)):
+async def listar(db: AsyncSession = Depends(get_db), me: TokenPayload = Depends(require_admin_o_propietario)):
     q = select(Propiedad)
-    # admin solo ve sus propiedades
-    if me.rol == "admin":
+    # admin/propietario solo ven sus propiedades (o las que no tienen dueño asignado); ti ve todas
+    if me.rol in ("admin", "propietario"):
         q = q.where(or_(Propiedad.owner_id == me.usuario_id, Propiedad.owner_id == None))
     r = await db.execute(q)
     return r.scalars().all()

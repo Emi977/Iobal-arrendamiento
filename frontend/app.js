@@ -15,8 +15,12 @@ const api = async (method, path, body) => {
     },
     body: body ? JSON.stringify(body) : undefined,
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.detail || "Error");
+  const raw = await res.text();
+  let data = null;
+  try { data = raw ? JSON.parse(raw) : null; } catch { /* respuesta no-JSON, ver abajo */ }
+  if (!res.ok) {
+    throw new Error(data?.detail || `Error del servidor (${res.status}). Verifica que el backend y la base de datos estén actualizados.`);
+  }
   return data;
 };
 
@@ -63,6 +67,7 @@ const sectionMeta = {
   cuidados:    { title: "Avisos",      sub: "Posts para inquilinos",              nuevo: true  },
   usuarios:    { title: "Usuarios",    sub: "Administración de cuentas",          nuevo: true  },
   adeudos:     { title: "Mis adeudos",  sub: "Pagos pendientes y atrasados",       nuevo: false },
+  ti:          { title: "TI — Admins", sub: "Gestión de cuentas administradoras", nuevo: true  },
 };
 
 document.querySelectorAll(".nav-item").forEach(a => {
@@ -124,11 +129,18 @@ async function renderDashboard() {
     const propOcupadas  = propiedades.filter(p => p.status === "ocupada").length;
     const propVacantes  = propiedades.filter(p => p.status === "vacante").length;
     const contActivos   = contratos.filter(c => c.status === "activo").length;
-    const pagosPend     = pagos.filter(p => p.status === "pendiente" || p.status === "atrasado").length;
     const msgNoLeidos   = mensajes.filter(m => !m.leido).length;
     const totalRenta    = contratos
       .filter(c => c.status === "activo")
       .reduce((s, c) => s + c.monto_mensual, 0);
+
+    const pagosPendientes = pagos.filter(p => p.status === "pendiente");
+    const pagosAtrasados  = pagos.filter(p => p.status === "atrasado");
+    const pagosParciales  = pagos.filter(p => p.status === "parcial");
+    const pagosCumplidos  = pagos.filter(p => p.status === "pagado");
+    const montoAdeudado = [...pagosPendientes, ...pagosAtrasados, ...pagosParciales]
+      .reduce((s, p) => s + p.total, 0);
+    const montoCobrado  = pagosCumplidos.reduce((s, p) => s + p.total, 0);
 
     $("section-content").innerHTML = `
       <div class="stat-grid">
@@ -161,17 +173,56 @@ async function renderDashboard() {
           </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon red"><i class="bi bi-credit-card"></i></div>
-          <div>
-            <div class="stat-value">${pagosPend}</div>
-            <div class="stat-label">Pagos pendientes</div>
-          </div>
-        </div>
-        <div class="stat-card">
           <div class="stat-icon green"><i class="bi bi-envelope-open"></i></div>
           <div>
             <div class="stat-value">${msgNoLeidos}</div>
             <div class="stat-label">Mensajes sin leer</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dashboard-section-label"><i class="bi bi-credit-card"></i> Estado de pagos</div>
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-icon green"><i class="bi bi-check-circle"></i></div>
+          <div>
+            <div class="stat-value">${pagosCumplidos.length}</div>
+            <div class="stat-label">Cumplidos</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon yellow"><i class="bi bi-hourglass-split"></i></div>
+          <div>
+            <div class="stat-value">${pagosPendientes.length}</div>
+            <div class="stat-label">Pendientes</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon red"><i class="bi bi-exclamation-circle"></i></div>
+          <div>
+            <div class="stat-value">${pagosAtrasados.length}</div>
+            <div class="stat-label">Atrasados</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon indigo"><i class="bi bi-slash-circle"></i></div>
+          <div>
+            <div class="stat-value">${pagosParciales.length}</div>
+            <div class="stat-label">Parciales</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon red"><i class="bi bi-cash-stack"></i></div>
+          <div>
+            <div class="stat-value">$${montoAdeudado.toLocaleString()}</div>
+            <div class="stat-label">Total adeudado</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon green"><i class="bi bi-cash-coin"></i></div>
+          <div>
+            <div class="stat-value">$${montoCobrado.toLocaleString()}</div>
+            <div class="stat-label">Total cobrado</div>
           </div>
         </div>
       </div>
@@ -784,7 +835,19 @@ const sections = {
   adeudos:     renderAdeudos,
   ti:          renderTi,
 };
-const renderSection = s => sections[s]?.();
+const renderSection = async s => {
+  try {
+    await sections[s]?.();
+  } catch (e) {
+    $("section-content").innerHTML = `
+      <div class="empty-state">
+        <i class="bi bi-exclamation-triangle text-danger"></i>
+        <p>No se pudo cargar esta sección.</p>
+        <p class="td-muted small">${e.message || "Error desconocido"}</p>
+      </div>`;
+    showAlert(e.message || "Error al cargar la sección");
+  }
+};
 
 $("btn-new").onclick = () => {
   const forms = {
@@ -808,8 +871,14 @@ function initApp() {
   document.querySelectorAll(".admin-only").forEach(el => {
     el.style.display = ["admin","ti"].includes(me.rol) ? "" : "none";
   });
+  document.querySelectorAll(".staff-only").forEach(el => {
+    el.style.display = ["admin","propietario","ti"].includes(me.rol) ? "" : "none";
+  });
   document.querySelectorAll(".ti-only").forEach(el => {
     el.style.display = me.rol === "ti" ? "" : "none";
+  });
+  document.querySelectorAll(".inquilino-only").forEach(el => {
+    el.style.display = me.rol === "inquilino" ? "" : "none";
   });
 
   // Datos del usuario en sidebar
@@ -817,11 +886,17 @@ function initApp() {
   if ($("user-role"))   $("user-role").textContent   = me.rol;
   if ($("user-avatar")) $("user-avatar").textContent = me.nombre.charAt(0).toUpperCase();
 
-  // Activar sección inicial
-  const firstNav = document.querySelector('.nav-item[data-section="dashboard"]');
-  if (firstNav) firstNav.classList.add("active");
-  $("btn-new").classList.add("d-none");
-  renderSection("dashboard");
+  // Sección inicial según el rol: el panel administrativo (Resumen) no aplica a inquilinos
+  const inicio = me.rol === "inquilino" ? "adeudos" : "dashboard";
+  document.querySelectorAll(".nav-item").forEach(x => x.classList.remove("active"));
+  const navInicio = document.querySelector(`.nav-item[data-section="${inicio}"]`);
+  if (navInicio) navInicio.classList.add("active");
+  currentSection = inicio;
+  const meta = sectionMeta[inicio] || {};
+  $("section-title").textContent = meta.title || inicio;
+  $("section-sub").textContent   = meta.sub   || "";
+  $("btn-new").classList.toggle("d-none", !meta.nuevo);
+  renderSection(inicio);
 }
 
 if (token && me) initApp();

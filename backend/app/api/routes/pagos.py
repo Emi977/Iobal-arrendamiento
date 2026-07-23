@@ -4,7 +4,7 @@ from sqlalchemy import select
 from app.db.database import get_db
 from app.models import Pago, ConceptoPago, Contrato
 from app.schemas import PagoCreate, PagoOut, PagoUpdate, AdeudoOut, GenerarRecurrentesOut
-from app.core.permissions import require_admin, get_current_user, TokenPayload
+from app.core.permissions import require_admin, require_admin_o_propietario, get_current_user, TokenPayload
 from app.services.recurrencia import generar_pagos_recurrentes
 
 router = APIRouter(prefix="/api/v1/pagos", tags=["pagos"])
@@ -29,7 +29,7 @@ async def generar_recurrentes(db: AsyncSession = Depends(get_db), _=Depends(requ
     return GenerarRecurrentesOut(generados=len(generados), pagos=generados)
 
 @router.get("", response_model=list[PagoOut])
-async def listar(contrato_id: int | None = None, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+async def listar(contrato_id: int | None = None, db: AsyncSession = Depends(get_db), _=Depends(require_admin_o_propietario)):
     await generar_pagos_recurrentes(db)
     q = select(Pago)
     if contrato_id:

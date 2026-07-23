@@ -386,6 +386,18 @@ body {
 }
 
 /* tarjetas con numeros del dashboard */
+.dashboard-section-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--gris-texto);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin: -0.5rem 0 0.85rem;
+}
+
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime, date
 from typing import Optional
 
@@ -16,7 +16,7 @@ class TokenResponse(BaseModel):
 class UsuarioCreate(BaseModel):
     nombre: str
     email: EmailStr
-    password: str
+    password: str = Field(min_length=6)
     rol: str = "inquilino"
 
 class UsuarioUpdate(BaseModel):
@@ -63,7 +63,7 @@ class PropiedadOut(BaseModel):
 class InquilinoCreate(BaseModel):
     nombre: str
     email: EmailStr
-    password: str
+    password: str = Field(min_length=6)
     telefono: Optional[str] = None
     referencias: Optional[str] = None
     estado: str = "vigente"  # vigente, baja
@@ -71,7 +71,7 @@ class InquilinoCreate(BaseModel):
 class InquilinoUpdate(BaseModel):
     nombre: Optional[str] = None
     email: Optional[EmailStr] = None
-    password: Optional[str] = None
+    password: Optional[str] = Field(default=None, min_length=6)
     telefono: Optional[str] = None
     referencias: Optional[str] = None
     estado: Optional[str] = None  # vigente, baja

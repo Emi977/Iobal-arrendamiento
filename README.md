@@ -12,9 +12,20 @@ Sistema de gestión de arrendamiento con propiedades, inquilinos, contratos, pag
 
 ---
 
-## Desarrollo local
+## Levantar el proyecto sin Docker (desarrollo local)
 
-### Requisitos previos
+Esta es la forma recomendada para desarrollar: backend con `uvicorn` corriendo directo en tu máquina y PostgreSQL nativo (o cualquier Postgres al que tengas acceso). Docker se deja solo para producción (ver más abajo).
+
+### 0. Checklist rápido
+
+1. Instalar PostgreSQL 16 y crear la base de datos.
+2. Configurar `backend/.env`.
+3. Crear entorno virtual, instalar dependencias e iniciar `uvicorn`.
+4. Ajustar la constante `API` en `frontend/app.js` (**paso fácil de olvidar**, ver nota abajo).
+5. Servir `frontend/` con cualquier servidor estático.
+6. Entrar con las credenciales sembradas automáticamente.
+
+### 1. Requisitos previos
 
 | Herramienta | Versión mínima |
 |---|---|
@@ -22,7 +33,20 @@ Sistema de gestión de arrendamiento con propiedades, inquilinos, contratos, pag
 | PostgreSQL | 16 |
 | pip | cualquiera reciente |
 
-### Variables de entorno
+### 2. Crear base de datos
+
+```bash
+psql -U postgres -c "CREATE USER iobal WITH PASSWORD 'iobal123';"
+psql -U postgres -c "CREATE DATABASE arrend_db OWNER iobal;"
+```
+
+> **¿Ya tenías una base de datos de una versión anterior del proyecto?** Aplica la migración incluida antes de arrancar el backend, o vas a ver errores 500 al abrir secciones como Contratos o Inquilinos:
+> ```bash
+> psql "postgresql://iobal:iobal123@localhost:5432/arrend_db" -f deploy/docker/migracion_contrato_aval.sql
+> ```
+> Si es una base nueva (recién creada arriba), no hace falta correr esto: las tablas se crean ya con el esquema completo.
+
+### 3. Variables de entorno
 
 Crea el archivo `backend/.env` a partir del ejemplo incluido:
 
@@ -38,15 +62,9 @@ Edita los valores según tu entorno local:
 | `SECRET_KEY` | Clave secreta para firmar JWT (cámbiala) | `mi-clave-segura-local` |
 | `ALGORITHM` | Algoritmo de firma JWT | `HS256` |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | Duración del token en minutos | `480` |
+| `DEBUG` | Si es `true`, los errores 500 regresan el detalle real (útil en desarrollo). Ponlo en `false` para producción | `true` |
 
-### Crear base de datos
-
-```bash
-psql -U postgres -c "CREATE USER iobal WITH PASSWORD 'iobal123';"
-psql -U postgres -c "CREATE DATABASE arrend_db OWNER iobal;"
-```
-
-### Instalar dependencias e iniciar el backend
+### 4. Instalar dependencias e iniciar el backend
 
 ```bash
 cd backend
@@ -56,9 +74,17 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 ```
 
-Las tablas se crean automáticamente al iniciar. El usuario admin se inserta si no existe.
+Las tablas se crean automáticamente al iniciar (`create_all`, sin Alembic). Además del usuario admin, también se siembra una cuenta con rol `ti` — ambas solo se insertan si no existen ya.
 
-### Servir el frontend
+**Documentación interactiva de la API**, ya disponible en cuanto arranca el backend:
+
+| Interfaz | URL |
+|---|---|
+| Swagger UI | http://localhost:8000/docs |
+| ReDoc | http://localhost:8000/redoc |
+| Scalar | http://localhost:8000/scalar |
+
+### 5. Servir el frontend
 
 Cualquier servidor HTTP estático funciona. Ejemplo con Python:
 
@@ -67,14 +93,27 @@ cd frontend
 python -m http.server 3000
 ```
 
-O abre `frontend/index.html` directamente en el navegador si el backend corre en `localhost:8000` y configuras un proxy, o ajusta la constante `API` en `app.js`.
+Luego abre `http://localhost:3000` en el navegador.
 
-### Credenciales por defecto
+> ⚠️ **Importante — ajusta la URL de la API:** `frontend/app.js` apunta a la API con una ruta **relativa** (`const API = "/api/v1"`), pensada para cuando Nginx sirve frontend y backend bajo el mismo dominio (como en producción con Docker). Si sirves el frontend en un puerto distinto al del backend (como en el ejemplo de arriba: frontend en `3000`, backend en `8000`), cambia esa línea al inicio de `frontend/app.js` a la URL completa del backend:
+> ```js
+> const API = "http://localhost:8000/api/v1";
+> ```
+> El backend ya acepta peticiones de cualquier origen (CORS abierto), así que basta con este cambio para que el frontend se conecte correctamente.
+
+### 6. Credenciales por defecto
 
 ```
-Email:    admin@iobal.com
-Password: Admin123!
+Admin
+  Email:    admin@iobal.com
+  Password: Admin123!
+
+TI (superusuario, gestiona cuentas admin)
+  Email:    ti@iobal.com
+  Password: Ti123456!
 ```
+
+Cambia ambas contraseñas después del primer login.
 
 ---
 
@@ -83,12 +122,13 @@ Password: Admin123!
 | Módulo | Descripción |
 |---|---|
 | **Propiedades** | Lista de casas/departamentos (vacante u ocupada) |
-| **Inquilinos** | Registro de inquilinos vinculados a usuarios |
-| **Contratos** | Se crea solo si hay inquilino activo; libera propiedad al finalizar |
+| **Inquilinos** | Alta directa (crea cuenta de acceso + perfil en un solo paso), estado vigente/baja |
+| **Contratos** | Se crea solo si hay inquilino vigente; libera propiedad al finalizar; cobro recurrente genera adeudos automáticamente |
 | **Pagos** | Cada mes con múltiples conceptos (renta, agua, luz, internet, mantenimiento) |
 | **Mensajes** | Avisos u observaciones por propiedad |
 | **Cuidados** | Posts generales para inquilinos |
-| **Usuarios** | CRUD de roles (admin, propietario, inquilino) — solo visible para admin |
+| **Usuarios** | Cuentas con rol admin o propietario — visible solo para admin/ti (los inquilinos se gestionan en su propio módulo) |
+| **TI** | Superusuario: administra las cuentas con rol admin — visible solo para rol `ti` |
 
 ---
 
@@ -133,6 +173,10 @@ docker compose up --build
 | Servicio | URL |
 |---|---|
 | Frontend | http://localhost:3000 |
-| API docs | http://localhost:3000/docs |
+| API / Swagger UI | http://localhost:8000/docs |
+| API / ReDoc | http://localhost:8000/redoc |
+| API / Scalar | http://localhost:8000/scalar |
+
+> Nginx (puerto `3000`) solo sirve el frontend y hace proxy de `/api/` hacia el backend; la documentación interactiva vive en el backend directamente (puerto `8000`), que también está expuesto al host.
 
 > Antes de subir a producción, cambia `SECRET_KEY` en `docker-compose.yml` y en tu `.env` por un valor seguro generado con `openssl rand -hex 32`.

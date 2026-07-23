@@ -4,7 +4,7 @@ from sqlalchemy import select
 from app.db.database import get_db
 from app.models import Contrato, Propiedad
 from app.schemas import ContratoCreate, ContratoOut, ContratoUpdate
-from app.core.permissions import require_admin, get_current_user
+from app.core.permissions import require_admin, require_admin_o_propietario, get_current_user
 
 router = APIRouter(prefix="/api/v1/contratos", tags=["contratos"])
 
@@ -24,7 +24,7 @@ async def crear(body: ContratoCreate, db: AsyncSession = Depends(get_db), _=Depe
     return c
 
 @router.get("", response_model=list[ContratoOut])
-async def listar(db: AsyncSession = Depends(get_db), _=Depends(require_admin)):
+async def listar(db: AsyncSession = Depends(get_db), _=Depends(require_admin_o_propietario)):
     r = await db.execute(select(Contrato))
     return r.scalars().all()
 
