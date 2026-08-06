@@ -583,6 +583,7 @@ body {
 .badge-pagado     { background: #D1FAE5; color: #065F46; }
 .badge-pendiente  { background: #FEF9C3; color: #854D0E; }
 .badge-atrasado   { background: #FEE2E2; color: #991B1B; }
+.badge-parcial    { background: #FFEDD5; color: #9A3412; }
 
 /* ventana modal (formularios) */
 .iobal-modal .modal-content {
@@ -691,6 +692,119 @@ body {
   background-color: var(--azul);
   border-color: var(--azul);
 }
+
+/* tarjetas de resumen por inquilino */
+.tenant-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.1rem;
+}
+
+.tenant-card {
+  background: var(--blanco);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-medio);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.tenant-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.1rem;
+  border-bottom: 1px solid var(--borde);
+}
+
+.tenant-avatar {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  border-radius: 50%;
+  background: var(--azul);
+  color: var(--blanco);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.tenant-id-block { flex: 1; min-width: 0; }
+
+.tenant-name {
+  font-weight: 700;
+  font-size: 14.5px;
+  color: var(--texto);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tenant-email {
+  font-size: 12.5px;
+  color: var(--gris-texto);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tenant-card-body {
+  padding: 1rem 1.1rem;
+  flex: 1;
+}
+
+.tenant-row {
+  font-size: 13px;
+  color: var(--texto);
+  margin-bottom: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tenant-row i { color: var(--gris-texto); margin-right: 4px; }
+
+.tenant-row-sub {
+  font-size: 11.5px;
+  color: var(--gris-texto);
+  padding-left: 20px;
+}
+
+.tenant-ok { color: var(--verde); flex-direction: row; align-items: center; gap: 6px; }
+
+.tenant-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--gris-texto);
+  margin: 0.9rem 0 0.5rem;
+}
+
+.tenant-section-title:first-of-type { margin-top: 0.2rem; }
+
+.tenant-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tenant-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.8rem 1.1rem;
+  border-top: 1px solid var(--borde);
+  background: var(--bg);
+  font-size: 12.5px;
+  color: var(--gris-texto);
+}
+
+.tenant-total { font-size: 16px; font-weight: 700; }
+.tenant-total-danger { color: var(--rojo); }
+.tenant-total-ok { color: var(--verde); }
 
 .modal-footer-actions {
   display: flex;

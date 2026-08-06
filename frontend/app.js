@@ -35,6 +35,9 @@ const showAlert = (msg, type = "danger") => {
 const statusBadge = s =>
   `<span class="iobal-badge badge-${s || "secondary"}">${s || "—"}</span>`;
 
+const MESES = ["","Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+const mesNombre = m => MESES[m] || m;
+
 const openModal = (title, html, onSave) => {
   $("modal-title").textContent = title;
   $("modal-body").innerHTML = html + `
@@ -61,6 +64,7 @@ const sectionMeta = {
   dashboard:   { title: "Resumen",     sub: "Vista general del sistema",          nuevo: false },
   propiedades: { title: "Propiedades", sub: "Gestión de inmuebles",               nuevo: true  },
   inquilinos:  { title: "Inquilinos",  sub: "Registro de inquilinos",             nuevo: true  },
+  "resumen-inquilinos": { title: "Resumen inquilinos", sub: "Panorama por inquilino: propiedades, adeudos y servicios", nuevo: false },
   contratos:   { title: "Contratos",   sub: "Contratos activos y finalizados",    nuevo: true  },
   pagos:       { title: "Pagos",       sub: "Control de pagos mensuales",         nuevo: true  },
   mensajes:    { title: "Mensajes",    sub: "Avisos y observaciones",             nuevo: true  },
@@ -374,6 +378,89 @@ function formInquilino(i = {}) {
   });
 }
 async function editInquilino(id) { formInquilino(await api("GET",`/inquilinos/${id}`)); }
+
+async function renderResumenInquilinos() {
+  const [inquilinos, contratos, propiedades, pagos] = await Promise.all([
+    api("GET", "/inquilinos"),
+    api("GET", "/contratos"),
+    api("GET", "/propiedades"),
+    api("GET", "/pagos"),
+  ]);
+  const propMap = Object.fromEntries(propiedades.map(p => [p.id, p]));
+
+  const cards = inquilinos.map(inq => {
+    const suyoContratos = contratos.filter(c => c.inquilino_id === inq.id);
+    const idsContratos  = suyoContratos.map(c => c.id);
+    const pagosInq      = pagos.filter(p => idsContratos.includes(p.contrato_id));
+    const noPagados     = pagosInq
+      .filter(p => p.status !== "pagado")
+      .sort((a,b) => (a.anio - b.anio) || (a.mes - b.mes));
+    const totalAdeudado = noPagados.reduce((s,p) => s + p.total, 0);
+    const servicios = [...new Set(noPagados.flatMap(p => p.conceptos.map(c => c.tipo)))];
+    return { inq, suyoContratos, noPagados, totalAdeudado, servicios };
+  });
+
+  $("section-content").innerHTML = `
+    <div class="tenant-summary-grid">
+      ${cards.length ? cards.map(({ inq, suyoContratos, noPagados, totalAdeudado, servicios }) => `
+        <div class="tenant-card">
+          <div class="tenant-card-header">
+            <div class="tenant-avatar">${(inq.nombre || "?").charAt(0).toUpperCase()}</div>
+            <div class="tenant-id-block">
+              <div class="tenant-name">${inq.nombre || `Inquilino #${inq.id}`}</div>
+              <div class="tenant-email">${inq.email || "—"}</div>
+            </div>
+            <span class="iobal-badge ${inq.estado === "vigente" ? "badge-activo" : "badge-cancelado"}">
+              ${inq.estado === "vigente" ? "Vigente" : "Baja"}
+            </span>
+          </div>
+
+          <div class="tenant-card-body">
+            <div class="tenant-row"><i class="bi bi-telephone"></i> ${inq.telefono || "Sin teléfono"}</div>
+
+            <div class="tenant-section-title">Propiedades</div>
+            ${suyoContratos.length ? suyoContratos.map(c => {
+              const prop = propMap[c.propiedad_id];
+              return `
+                <div class="tenant-row">
+                  <i class="bi bi-building"></i>
+                  ${prop ? `${prop.nombre} — ${prop.direccion}` : `Propiedad #${c.propiedad_id}`}
+                  <div class="tenant-row-sub">
+                    $${c.monto_mensual.toLocaleString()}/mes
+                    ${c.cobro_recurrente ? ` · cobro recurrente día ${c.dia_cobro}` : " · cobro puntual"}
+                    · ${statusBadge(c.status)}
+                  </div>
+                </div>`;
+            }).join("") : `<div class="tenant-row td-muted">Sin contrato registrado</div>`}
+
+            <div class="tenant-section-title">Meses / pagos no cubiertos</div>
+            ${noPagados.length ? `
+              <div class="tenant-chip-list">
+                ${noPagados.map(p => `
+                  <span class="iobal-badge badge-${p.status}" title="$${p.total.toLocaleString()}">
+                    ${mesNombre(p.mes)} ${p.anio}
+                  </span>`).join("")}
+              </div>
+            ` : `<div class="tenant-row tenant-ok"><i class="bi bi-check-circle"></i> Al corriente</div>`}
+
+            ${servicios.length ? `
+              <div class="tenant-section-title">Servicios pendientes</div>
+              <div class="tenant-chip-list">
+                ${servicios.map(s => `<span class="iobal-badge badge-pendiente">${s}</span>`).join("")}
+              </div>
+            ` : ""}
+          </div>
+
+          <div class="tenant-card-footer">
+            <span>Total adeudado</span>
+            <span class="tenant-total ${totalAdeudado > 0 ? "tenant-total-danger" : "tenant-total-ok"}">
+              $${totalAdeudado.toLocaleString()}
+            </span>
+          </div>
+        </div>
+      `).join("") : `<div class="empty-state"><i class="bi bi-people"></i><p>Sin inquilinos registrados</p></div>`}
+    </div>`;
+}
 
 async function renderContratos() {
   const [data, inquilinos] = await Promise.all([
@@ -827,6 +914,7 @@ const sections = {
   dashboard:   renderDashboard,
   propiedades: renderPropiedades,
   inquilinos:  renderInquilinos,
+  "resumen-inquilinos": renderResumenInquilinos,
   contratos:   renderContratos,
   pagos:       renderPagos,
   mensajes:    renderMensajes,
