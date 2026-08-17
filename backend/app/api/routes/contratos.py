@@ -28,11 +28,27 @@ async def listar(db: AsyncSession = Depends(get_db), _=Depends(require_admin_o_p
     r = await db.execute(select(Contrato))
     return r.scalars().all()
 
+@router.get("/mis-contratos", response_model=list[ContratoOut])
+async def mis_contratos(db: AsyncSession = Depends(get_db), me=Depends(get_current_user)):
+    from app.models import Inquilino
+    r = await db.execute(select(Inquilino).where(Inquilino.usuario_id == me.usuario_id))
+    inq = r.scalar_one_or_none()
+    if not inq:
+        return []
+    r2 = await db.execute(select(Contrato).where(Contrato.inquilino_id == inq.id))
+    return r2.scalars().all()
+
 @router.get("/{id}", response_model=ContratoOut)
-async def obtener(id: int, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+async def obtener(id: int, db: AsyncSession = Depends(get_db), me=Depends(get_current_user)):
     r = await db.execute(select(Contrato).where(Contrato.id == id))
     c = r.scalar_one_or_none()
     if not c: raise HTTPException(status_code=404, detail="No encontrado")
+    if me.rol == "inquilino":
+        from app.models import Inquilino
+        ri = await db.execute(select(Inquilino).where(Inquilino.usuario_id == me.usuario_id))
+        inq = ri.scalar_one_or_none()
+        if not inq or c.inquilino_id != inq.id:
+            raise HTTPException(status_code=403, detail="Sin permisos sobre este contrato")
     return c
 
 @router.patch("/{id}", response_model=ContratoOut)

@@ -45,6 +45,13 @@ async def listar(estado: str | None = None, db: AsyncSession = Depends(get_db), 
     r = await db.execute(q)
     return [_to_out(i) for i in r.scalars().all()]
 
+@router.get("/me", response_model=InquilinoOut)
+async def mi_perfil(db: AsyncSession = Depends(get_db), me=Depends(get_current_user)):
+    r = await db.execute(select(Inquilino).options(selectinload(Inquilino.usuario)).where(Inquilino.usuario_id == me.usuario_id))
+    i = r.scalar_one_or_none()
+    if not i: raise HTTPException(status_code=404, detail="No tienes un perfil de inquilino asociado")
+    return _to_out(i)
+
 @router.get("/{id}", response_model=InquilinoOut)
 async def obtener(id: int, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     r = await db.execute(select(Inquilino).options(selectinload(Inquilino.usuario)).where(Inquilino.id == id))

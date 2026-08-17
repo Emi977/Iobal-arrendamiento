@@ -67,6 +67,27 @@ async def mis_adeudos(db: AsyncSession = Depends(get_db), me: TokenPayload = Dep
             ))
     return adeudos
 
+@router.get("/mis-pagos", response_model=list[PagoOut])
+async def mis_pagos(db: AsyncSession = Depends(get_db), me: TokenPayload = Depends(get_current_user)):
+    """Historial completo (todos los estados) de los pagos del inquilino autenticado."""
+    await generar_pagos_recurrentes(db)
+    from app.models import Inquilino
+    r = await db.execute(select(Inquilino).where(Inquilino.usuario_id == me.usuario_id))
+    inq = r.scalar_one_or_none()
+    if not inq:
+        return []
+    r2 = await db.execute(select(Contrato).where(Contrato.inquilino_id == inq.id))
+    contrato_ids = [c.id for c in r2.scalars().all()]
+    if not contrato_ids:
+        return []
+    r3 = await db.execute(
+        select(Pago).where(Pago.contrato_id.in_(contrato_ids)).order_by(Pago.anio.desc(), Pago.mes.desc())
+    )
+    pagos = r3.scalars().all()
+    for p in pagos:
+        await db.refresh(p, ["conceptos"])
+    return pagos
+
 @router.get("/{id}", response_model=PagoOut)
 async def obtener(id: int, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     r = await db.execute(select(Pago).where(Pago.id == id))

@@ -700,6 +700,11 @@ body {
   gap: 1.1rem;
 }
 
+.tenant-summary-grid-single {
+  grid-template-columns: minmax(300px, 640px);
+  margin-bottom: 1.75rem;
+}
+
 .tenant-card {
   background: var(--blanco);
   border: 1px solid var(--borde);

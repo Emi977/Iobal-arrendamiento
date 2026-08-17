@@ -70,7 +70,7 @@ const sectionMeta = {
   mensajes:    { title: "Mensajes",    sub: "Avisos y observaciones",             nuevo: true  },
   cuidados:    { title: "Avisos",      sub: "Posts para inquilinos",              nuevo: true  },
   usuarios:    { title: "Usuarios",    sub: "Administración de cuentas",          nuevo: true  },
-  adeudos:     { title: "Mis adeudos",  sub: "Pagos pendientes y atrasados",       nuevo: false },
+  adeudos:     { title: "Mi panel",    sub: "Tu contrato, propiedades, pagos y adeudos", nuevo: false },
   ti:          { title: "TI — Admins", sub: "Gestión de cuentas administradoras", nuevo: true  },
 };
 
@@ -889,25 +889,125 @@ async function deleteAdminTi(id) {
   catch(e) { showAlert(e.message); }
 }
 
-async function renderAdeudos() {
-  const data = await api("GET", "/pagos/mis-adeudos");
-  $("section-content").innerHTML = data.length ? `
+async function renderMiPanel() {
+  const [inq, contratos, pagos] = await Promise.all([
+    api("GET", "/inquilinos/me"),
+    api("GET", "/contratos/mis-contratos"),
+    api("GET", "/pagos/mis-pagos"),
+  ]);
+
+  const propiedades = await Promise.all(
+    contratos.map(c => api("GET", `/propiedades/${c.propiedad_id}`).catch(() => null))
+  );
+  const propMap = Object.fromEntries(contratos.map((c, idx) => [c.id, propiedades[idx]]));
+
+  let mensajes = [];
+  const contratoActivo = contratos.find(c => c.status === "activo");
+  if (contratoActivo) {
+    const prop = propMap[contratoActivo.id];
+    if (prop) mensajes = await api("GET", `/mensajes?propiedad_id=${prop.id}`).catch(() => []);
+  }
+
+  const noPagados     = pagos.filter(p => p.status !== "pagado");
+  const pagosPagados  = pagos.filter(p => p.status === "pagado");
+  const totalAdeudado = noPagados.reduce((s, p) => s + p.total, 0);
+  const totalPagado   = pagosPagados.reduce((s, p) => s + p.total, 0);
+  const servicios     = [...new Set(noPagados.flatMap(p => p.conceptos.map(c => c.tipo)))];
+
+  $("section-content").innerHTML = `
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-icon ${totalAdeudado > 0 ? "red" : "green"}"><i class="bi bi-cash-stack"></i></div>
+        <div><div class="stat-value">$${totalAdeudado.toLocaleString()}</div><div class="stat-label">Total adeudado</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon green"><i class="bi bi-cash-coin"></i></div>
+        <div><div class="stat-value">$${totalPagado.toLocaleString()}</div><div class="stat-label">Total pagado</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon yellow"><i class="bi bi-hourglass-split"></i></div>
+        <div><div class="stat-value">${noPagados.length}</div><div class="stat-label">Meses/pagos pendientes</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon indigo"><i class="bi bi-file-earmark-text"></i></div>
+        <div><div class="stat-value">${contratos.filter(c => c.status === "activo").length}</div><div class="stat-label">Contratos activos</div></div>
+      </div>
+    </div>
+
+    <div class="tenant-summary-grid tenant-summary-grid-single">
+      <div class="tenant-card">
+        <div class="tenant-card-header">
+          <div class="tenant-avatar">${(inq.nombre || "?").charAt(0).toUpperCase()}</div>
+          <div class="tenant-id-block">
+            <div class="tenant-name">${inq.nombre || "—"}</div>
+            <div class="tenant-email">${inq.email || "—"}</div>
+          </div>
+          <span class="iobal-badge ${inq.estado === "vigente" ? "badge-activo" : "badge-cancelado"}">
+            ${inq.estado === "vigente" ? "Vigente" : "Baja"}
+          </span>
+        </div>
+
+        <div class="tenant-card-body">
+          <div class="tenant-row"><i class="bi bi-telephone"></i> ${inq.telefono || "Sin teléfono"}</div>
+          ${inq.referencias ? `<div class="tenant-row"><i class="bi bi-card-text"></i> ${inq.referencias}</div>` : ""}
+
+          <div class="tenant-section-title">Mis propiedades y contratos</div>
+          ${contratos.length ? contratos.map(c => {
+            const prop = propMap[c.id];
+            return `
+              <div class="tenant-row">
+                <i class="bi bi-building"></i>
+                ${prop ? `${prop.nombre} — ${prop.direccion}` : `Propiedad #${c.propiedad_id}`}
+                <div class="tenant-row-sub">
+                  ${c.fecha_inicio} → ${c.fecha_fin} · $${c.monto_mensual.toLocaleString()}/mes
+                  ${c.cobro_recurrente ? ` · cobro recurrente día ${c.dia_cobro}` : " · cobro puntual"}
+                  · ${statusBadge(c.status)}
+                </div>
+              </div>`;
+          }).join("") : `<div class="tenant-row td-muted">No tienes contratos registrados</div>`}
+
+          ${servicios.length ? `
+            <div class="tenant-section-title">Servicios pendientes</div>
+            <div class="tenant-chip-list">
+              ${servicios.map(s => `<span class="iobal-badge badge-pendiente">${s}</span>`).join("")}
+            </div>
+          ` : ""}
+
+          ${mensajes.length ? `
+            <div class="tenant-section-title">Avisos recientes</div>
+            ${mensajes.slice(0, 3).map(m => `
+              <div class="tenant-row"><i class="bi bi-megaphone"></i> ${m.contenido}</div>
+            `).join("")}
+          ` : ""}
+        </div>
+
+        <div class="tenant-card-footer">
+          <span>Total adeudado</span>
+          <span class="tenant-total ${totalAdeudado > 0 ? "tenant-total-danger" : "tenant-total-ok"}">
+            $${totalAdeudado.toLocaleString()}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="dashboard-section-label"><i class="bi bi-receipt"></i> Historial de pagos</div>
     <div class="iobal-table-wrap">
       <div class="table-responsive">
         <table class="iobal-table">
           <thead><tr><th>Mes/Año</th><th>Tipo</th><th>Conceptos</th><th>Total</th><th>Estado</th></tr></thead>
-          <tbody>${data.map(p => `
+          <tbody>${pagos.length ? pagos.map(p => `
             <tr>
-              <td>${p.mes}/${p.anio}</td>
+              <td>${mesNombre(p.mes)} ${p.anio}</td>
               <td>${p.tipo === "recurrente" ? '<span class="iobal-badge badge-activo">recurrente</span>' : '<span class="iobal-badge badge-pendiente">puntual</span>'}</td>
               <td class="td-muted small">${p.conceptos.map(c => `${c.tipo}: $${c.monto}`).join(", ")}</td>
               <td class="td-strong">$${p.total.toLocaleString()}</td>
               <td>${statusBadge(p.status)}</td>
-            </tr>`).join("")}
+            </tr>`).join("")
+          : `<tr><td colspan="5"><div class="empty-state"><i class="bi bi-check-circle"></i><p>Sin pagos registrados todavía</p></div></td></tr>`}
           </tbody>
         </table>
       </div>
-    </div>` : `<div class="empty-state"><i class="bi bi-check-circle"></i><p>Sin adeudos pendientes</p></div>`;
+    </div>`;
 }
 
 const sections = {
@@ -920,7 +1020,7 @@ const sections = {
   mensajes:    renderMensajes,
   cuidados:    renderCuidados,
   usuarios:    renderUsuarios,
-  adeudos:     renderAdeudos,
+  adeudos:     renderMiPanel,
   ti:          renderTi,
 };
 const renderSection = async s => {

@@ -1,4 +1,4 @@
-Arrendamiento de propiedades
+# IOBAL — Arrendamiento de propiedades
 
 Sistema de gestión de arrendamiento con propiedades, inquilinos, contratos, pagos y mensajes.
 
@@ -16,13 +16,13 @@ Sistema de gestión de arrendamiento con propiedades, inquilinos, contratos, pag
 
 Esta es la forma recomendada para desarrollar: backend con `uvicorn` corriendo directo en tu máquina y PostgreSQL nativo (o cualquier Postgres al que tengas acceso). Docker se deja solo para producción (ver más abajo).
 
-### 0. Importante
+### 0. Checklist rápido
 
 1. Instalar PostgreSQL 16 y crear la base de datos.
 2. Configurar `backend/.env`.
 3. Crear entorno virtual, instalar dependencias e iniciar `uvicorn`.
-4. Ajustar la constante `API` en `frontend/app.js`.
-5. Servir `frontend/` con un servidor estático.
+4. Ajustar la constante `API` en `frontend/app.js` (**paso fácil de olvidar**, ver nota abajo).
+5. Servir `frontend/` con cualquier servidor estático.
 6. Entrar con las credenciales sembradas automáticamente.
 
 ### 1. Requisitos previos
