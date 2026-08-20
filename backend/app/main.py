@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
 from fastapi.responses import JSONResponse
@@ -70,6 +71,46 @@ async def manejador_errores_no_controlados(request: Request, exc: Exception):
     return JSONResponse(status_code=500, content={"detail": "Error interno del servidor"})
 
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+def _traducir_error_validacion(e: dict) -> str:
+    """Traduce los mensajes de Pydantic (siempre en inglés) a español."""
+    tipo = e.get("type", "")
+    msg = e.get("msg", "")
+    ctx = e.get("ctx", {}) or {}
+
+    if tipo == "missing":
+        return "Este campo es obligatorio"
+    if tipo == "string_too_short":
+        return f"Debe tener al menos {ctx.get('min_length', '?')} caracteres"
+    if tipo == "string_too_long":
+        return f"Debe tener máximo {ctx.get('max_length', '?')} caracteres"
+    if tipo in ("int_parsing", "int_type"):
+        return "Debe ser un número entero"
+    if tipo in ("float_parsing", "float_type"):
+        return "Debe ser un número"
+    if tipo in ("bool_parsing", "bool_type"):
+        return "Debe ser verdadero o falso (true/false)"
+    if tipo in ("date_parsing", "date_from_datetime_parsing"):
+        return "La fecha no tiene un formato válido (usa AAAA-MM-DD)"
+    if tipo == "greater_than_equal":
+        return f"Debe ser mayor o igual a {ctx.get('ge')}"
+    if tipo == "less_than_equal":
+        return f"Debe ser menor o igual a {ctx.get('le')}"
+    if tipo == "json_invalid":
+        return "El formato enviado no es JSON válido"
+    if "email" in msg.lower() or "@-sign" in msg.lower():
+        return "El correo electrónico no tiene un formato válido (debe incluir @ y un dominio)"
+    return msg  # si no reconocemos el tipo, se muestra el mensaje original de Pydantic
+
+@app.exception_handler(RequestValidationError)
+async def manejador_validacion(request: Request, exc: RequestValidationError):
+    """Traduce los errores 422 (datos con formato inválido) al español antes de responder."""
+    errores = []
+    for e in exc.errors():
+        campo = ".".join(str(x) for x in e.get("loc", []) if x != "body")
+        errores.append({"campo": campo, "mensaje": _traducir_error_validacion(e)})
+    detalle = " · ".join(f"{er['campo']}: {er['mensaje']}" if er["campo"] else er["mensaje"] for er in errores)
+    return JSONResponse(status_code=422, content={"detail": detalle or "Datos inválidos", "errores": errores})
 
 app.include_router(auth_router)
 app.include_router(usuarios_router)
