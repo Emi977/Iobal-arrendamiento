@@ -19,9 +19,25 @@ const api = async (method, path, body) => {
   let data = null;
   try { data = raw ? JSON.parse(raw) : null; } catch { /* respuesta no-JSON, ver abajo */ }
   if (!res.ok) {
-    throw new Error(data?.detail || `Error del servidor (${res.status}). Verifica que el backend y la base de datos estén actualizados.`);
+    throw new Error(detailToString(data) || `Error del servidor (${res.status}). Verifica que el backend y la base de datos estén actualizados.`);
   }
   return data;
+};
+
+// Convierte el "detail" de un error de FastAPI a texto legible, sea un string
+// (HTTPException normal) o una lista de errores de validación de Pydantic (422).
+const detailToString = data => {
+  const d = data?.detail;
+  if (!d) return null;
+  if (typeof d === "string") return d;
+  if (Array.isArray(d)) {
+    return d.map(e => {
+      if (typeof e === "string") return e;
+      const campo = Array.isArray(e.loc) ? e.loc.filter(x => x !== "body").join(".") : "";
+      return campo ? `${campo}: ${e.msg}` : e.msg;
+    }).filter(Boolean).join(" · ");
+  }
+  return typeof d === "object" ? JSON.stringify(d) : String(d);
 };
 
 const showAlert = (msg, type = "danger") => {
